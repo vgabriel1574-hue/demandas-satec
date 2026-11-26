@@ -129,6 +129,15 @@ body:not(.editor) .so-editor{display:none!important}
 body.editor .so-leitor{display:none!important}
 .head-acts{display:flex;gap:8px;flex-wrap:wrap}
 .erro{color:var(--danger);font-size:13px;font-weight:600}
+.fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.foto{position:relative;aspect-ratio:1;max-width:100%;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--bg);display:block}
+.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.foto .rm{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(15,24,44,.75);color:#fff;cursor:pointer;display:grid;place-items:center;padding:0}
+.foto .rm svg{width:14px;height:14px}
+.add-foto{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.add-foto small{color:var(--muted);font-size:12px}
+.it-cam{display:inline-flex;align-items:center;gap:3px}
+.it-cam svg{width:13px;height:13px}
 
 .mtop{display:none}
 @media (max-width:860px){
@@ -168,6 +177,8 @@ body.editor .so-leitor{display:none!important}
   .f-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:70px}
   .f-sign div{border-top:1px solid #000;padding-top:4px;font-size:11px;text-align:center}
   .f-foot{margin-top:28px;font-family:var(--mono);font-size:9px;color:#666}
+  .f-fotos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .f-fotos img{width:100%;max-height:110mm;object-fit:contain;border:1px solid #ccc;break-inside:avoid}
   .r-sub{font-size:12px;color:#333;margin-bottom:12px}
   .r-tot{display:flex;gap:18px;font-size:12px;margin-bottom:14px}
   .r-tab{width:100%;border-collapse:collapse;font-size:11px}
@@ -232,6 +243,11 @@ body.editor .so-leitor{display:none!important}
       <div><label for="fTit">O que precisa ser feito?</label><input id="fTit" required maxlength="150" placeholder="Instalar impressora no financeiro"></div>
       <div><label for="fSetor">Setor que pediu</label><input id="fSetor" list="setores" maxlength="60" placeholder="Financeiro, Recepção, RH…" autocomplete="off"><datalist id="setores"></datalist></div>
       <div><label for="fDesc">Detalhes</label><textarea id="fDesc" placeholder="Local, contato, observações"></textarea></div>
+      <div><label for="fFotos">Fotos ou prints</label>
+        <div class="add-foto"><button type="button" class="btn" id="btnFoto"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>Adicionar foto</button><small>ou cole um print com Ctrl+V</small></div>
+        <input type="file" id="fFotos" accept="image/*" multiple hidden>
+        <div class="fotos" id="fotosPrev" style="margin-top:10px"></div>
+      </div>
       <div class="two">
         <div><label for="fTec">Técnico</label><select id="fTec" required><option>Victor</option><option>Andrey</option></select></div>
         <div><label for="fSt">Status</label><select id="fSt"><option value="aberta">Aberta</option><option value="em andamento">Em andamento</option><option value="concluida">Concluída</option></select></div>
@@ -266,7 +282,10 @@ body.editor .so-leitor{display:none!important}
 <div id="ficha"></div>
 
 <script>
-const db = supabase.createClient('https://iuxhuszazljvvlocvsrv.supabase.co', 'sb_publishable__sqNx8HqBZKw-nAE5PZ63A__672bkEG');
+const SUPA = 'https://iuxhuszazljvvlocvsrv.supabase.co', CHAVE = 'sb_publishable__sqNx8HqBZKw-nAE5PZ63A__672bkEG';
+const db = supabase.createClient(SUPA, CHAVE);
+const urlFoto = path => `${SUPA}/storage/v1/object/public/anexos/${path.split('/').map(encodeURIComponent).join('/')}`;
+let fotosForm = [];
 const $ = id => document.getElementById(id);
 const STATUS = {'aberta':['Aberta','p-aberta','var(--aberta)','var(--aberta-bg)'],'em andamento':['Em andamento','p-andamento','var(--andamento)','var(--andamento-bg)'],'concluida':['Concluída','p-concluida','var(--concluida)','var(--concluida-bg)']};
 const TECNICOS = ['Victor','Andrey'];
@@ -334,7 +353,7 @@ function render() {
   $('lista').innerHTML = lista.map(d => `<li><button type="button" class="item" data-id="${d.id}" aria-current="${abertoId == d.id}">
     <span class="av ${d.tecnico[0]}">${esc(d.tecnico[0])}</span>
     <span style="min-width:0"><span class="it-t" style="display:block">${esc(d.titulo)}</span>
-      <span class="it-m"><span class="id">${cod(d.id)}</span>${d.setor ? `<span>${esc(d.setor)}</span>` : ''}<span>${esc(d.tecnico)}</span><span>${d.status === 'concluida' ? 'concluída ' + desde(d.data_conclusao) : 'aberta ' + desde(d.data_abertura)}</span></span></span>
+      <span class="it-m"><span class="id">${cod(d.id)}</span>${d.setor ? `<span>${esc(d.setor)}</span>` : ''}<span>${esc(d.tecnico)}</span>${d.anexos?.length ? `<span class="it-cam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>${d.anexos.length}</span>` : ''}<span>${d.status === 'concluida' ? 'concluída ' + desde(d.data_conclusao) : 'aberta ' + desde(d.data_abertura)}</span></span></span>
     <span class="pill ${STATUS[d.status][1]}">${STATUS[d.status][0]}</span>
   </button></li>`).join('');
 }
@@ -348,6 +367,7 @@ function detalhe(id, abrirAgora = true) {
     <div class="dr-b">
       <div><span class="pill ${STATUS[d.status][1]}">${STATUS[d.status][0]}</span><h2 style="margin-top:10px">${esc(d.titulo)}</h2></div>
       ${d.descricao ? `<p class="dr-desc">${esc(d.descricao)}</p>` : ''}
+      ${d.anexos?.length ? `<div><div class="lbl">Fotos e prints</div><div class="fotos">${d.anexos.map(a => `<a class="foto" href="${urlFoto(a)}" target="_blank" rel="noopener"><img src="${urlFoto(a)}" alt="Anexo da demanda" loading="lazy"></a>`).join('')}</div></div>` : ''}
       <div class="facts">
         <div><small>Setor que pediu</small><strong>${esc(d.setor) || '—'}</strong></div>
         <div><small>Técnico</small><strong>${esc(d.tecnico)}</strong></div>
@@ -389,6 +409,8 @@ function abrirForm(d) {
   $('fTit').value = d?.titulo || '';
   $('fDesc').value = d?.descricao || '';
   $('fSetor').value = d?.setor || '';
+  fotosForm = (d?.anexos || []).map(path => ({ path, url: urlFoto(path) }));
+  desenharFotos();
   $('setores').innerHTML = [...new Set(demandas.map(x => x.setor).filter(Boolean))].sort().map(v => `<option value="${esc(v)}">`).join('');
   $('fTec').value = d?.tecnico || filtroTec || 'Victor';
   $('fSt').value = d?.status || 'aberta';
@@ -402,7 +424,7 @@ function textoZap(d) {
     d.descricao ? `\n${d.descricao}` : null].filter(Boolean).join('\n');
 }
 
-function ficha(d) {
+async function ficha(d) {
   $('ficha').innerHTML = `
     <div class="f-head"><b>SATEC</b><span>Demanda ${cod(d.id)}</span></div>
     <div class="f-grid">
@@ -414,8 +436,10 @@ function ficha(d) {
     </div>
     <div class="f-sec"><h3>Demanda</h3><p style="font-weight:700;font-size:16px">${esc(d.titulo)}</p></div>
     <div class="f-sec"><h3>Detalhes</h3><p>${esc(d.descricao) || '—'}</p></div>
+    ${d.anexos?.length ? `<div class="f-sec"><h3>Fotos e prints</h3><div class="f-fotos">${d.anexos.map(a => `<img src="${urlFoto(a)}" alt="">`).join('')}</div></div>` : ''}
     <div class="f-foot">Gerado em ${dt(new Date().toISOString())}</div>`;
   document.title = `Demanda ${cod(d.id)} - ${d.titulo}`;
+  await Promise.all([...$('ficha').querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(ok => { i.onload = i.onerror = ok; })));
   window.print();
   document.title = 'Demandas Satec';
 }
@@ -425,7 +449,11 @@ $('form').addEventListener('submit', async e => {
   const id = $('fId').value;
   const atual = demandas.find(d => d.id == id);
   $('btnSalvar').disabled = true;
-  const { error } = await rpc('salvar_demanda', { p_id: id ? Number(id) : null, p_titulo: $('fTit').value.trim(), p_descricao: $('fDesc').value.trim() || null, p_tecnico: $('fTec').value, p_status: $('fSt').value, p_setor: $('fSetor').value.trim() || null });
+  let anexos;
+  try { anexos = await enviarFotos(); }
+  catch (err) { $('btnSalvar').disabled = false; $('btnSalvar').textContent = 'Salvar demanda'; return toast(err.message, true); }
+  $('btnSalvar').textContent = 'Salvar demanda';
+  const { error } = await rpc('salvar_demanda', { p_anexos: anexos, p_id: id ? Number(id) : null, p_titulo: $('fTit').value.trim(), p_descricao: $('fDesc').value.trim() || null, p_tecnico: $('fTec').value, p_status: $('fSt').value, p_setor: $('fSetor').value.trim() || null });
   $('btnSalvar').disabled = false;
   if (error) return toast('Não salvou: ' + error.message, true);
   fechar();
@@ -473,6 +501,41 @@ $('tabs').addEventListener('click', e => {
 });
 $('fBusca').addEventListener('input', render);
 $('btnNova').onclick = () => abrirForm();
+
+function desenharFotos() {
+  $('fotosPrev').innerHTML = fotosForm.map((f, i) => `<div class="foto"><img src="${f.url}" alt="Foto ${i + 1}"><button type="button" class="rm" data-rm="${i}" aria-label="Remover foto"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>`).join('');
+}
+function addFotos(files) {
+  const imgs = [...files].filter(f => f.type.startsWith('image/'));
+  if (!imgs.length) return;
+  const grandes = imgs.filter(f => f.size > 10 * 1024 * 1024);
+  if (grandes.length) toast('Imagem acima de 10 MB não foi adicionada.', true);
+  imgs.filter(f => f.size <= 10 * 1024 * 1024).forEach(file => fotosForm.push({ file, url: URL.createObjectURL(file) }));
+  desenharFotos();
+}
+async function enviarFotos() {
+  const out = [];
+  const novas = fotosForm.filter(f => f.file).length;
+  let n = 0;
+  for (const f of fotosForm) {
+    if (f.path) { out.push(f.path); continue; }
+    n++;
+    $('btnSalvar').textContent = `Enviando foto ${n} de ${novas}…`;
+    const fd = new FormData();
+    fd.append('senha', senha);
+    fd.append('arquivo', f.file, f.file.name || 'print.png');
+    const res = await fetch(`${SUPA}/functions/v1/upload-anexo`, { method: 'POST', headers: { apikey: CHAVE }, body: fd });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error('Não enviou a foto: ' + (j.error || res.status));
+    f.path = j.path; delete f.file;
+    out.push(j.path);
+  }
+  return out;
+}
+$('btnFoto').onclick = () => $('fFotos').click();
+$('fFotos').addEventListener('change', e => { addFotos(e.target.files); e.target.value = ''; });
+$('form').addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) { e.preventDefault(); addFotos(fs); toast('Print adicionado'); } });
+$('fotosPrev').addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (b) { fotosForm.splice(+b.dataset.rm, 1); desenharFotos(); } });
 $('btnExport').onclick = () => {
   const busca = $('fBusca').value.trim().toLowerCase();
   const lista = demandas.filter(d => (!filtroTec || d.tecnico === filtroTec) && (!filtroSt || d.status === filtroSt) &&
