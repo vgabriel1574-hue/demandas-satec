@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demandas Satec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+/* App de demandas: menu lateral verde com técnicos, abas de status, lista de demandas, painel de detalhe à direita */
+:root{
+  --side:#0f2a52;--side-2:#1a3b6b;--side-ink:#e8eefa;--side-mute:#93a8cc;
+  --bg:#f3f5f9;--paper:#fff;--line:#e1e6ef;--ink:#141c2b;--ink-2:#4a5568;--muted:#8490a3;
+  --brand:#1f5fd6;--brand-soft:#e6eefc;
+  --aberta:#c2410c;--aberta-bg:#fff0e6;--andamento:#0e7490;--andamento-bg:#e2f4f8;--concluida:#1d7a4c;--concluida-bg:#e3f3ea;
+  --danger:#c62828;
+  --sans:"Plus Jakarta Sans",system-ui,"Segoe UI",sans-serif;--mono:"DM Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg)}
+body{font-family:var(--sans);color:var(--ink);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+.app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+
+.side{background:var(--side);color:var(--side-ink);display:flex;flex-direction:column;padding:22px 14px;gap:26px;position:sticky;top:0;height:100vh}
+.logo{display:flex;align-items:center;gap:10px;padding:0 8px}
+.logo i{width:34px;height:34px;border-radius:9px;background:var(--side-ink);color:var(--side);display:grid;place-items:center;font-style:normal;font-weight:800;font-size:17px}
+.logo b{font-weight:800;font-size:18px;letter-spacing:.02em}
+.logo small{display:block;font-size:12px;color:var(--side-mute);font-weight:500;margin-top:-2px}
+.nav-t{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--side-mute);padding:0 10px;margin-bottom:6px}
+.nav{display:grid;gap:2px}
+.nav button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:transparent;border:0;border-radius:8px;padding:10px;cursor:pointer;color:var(--side-ink);font-weight:600}
+.nav button:hover{background:var(--side-2)}
+.nav button[aria-current="true"]{background:var(--side-ink);color:var(--side)}
+.nav .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;background:var(--side-2);color:var(--side-ink)}
+.nav button[aria-current="true"] .av{background:var(--side);color:var(--side-ink)}
+.nav .n{margin-left:auto;font-family:var(--mono);font-size:12px;opacity:.75}
+.side-foot{margin-top:auto;font-size:12px;color:var(--side-mute);padding:0 10px;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#5fd39b}
+.off .dot{background:#ff8a80}
+
+.main{min-width:0;padding:28px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
+.inner{max-width:980px;margin:0 auto;display:grid;gap:22px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.head h1{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.head p{color:var(--muted);font-size:14px;margin-top:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--paper);padding:10px 16px;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px}
+.btn:hover{border-color:var(--ink-2)}
+.btn-brand{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn-brand:hover{background:#1a50b5;border-color:#1a50b5}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff}
+
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tab{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;text-align:left;cursor:pointer;display:grid;gap:2px}
+.tab:hover{border-color:#c3cddd}
+.tab span{font-size:13px;font-weight:600;color:var(--ink-2)}
+.tab b{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:var(--c,var(--ink))}
+.tab[aria-pressed="true"]{border-color:var(--c,var(--ink));box-shadow:inset 0 0 0 1px var(--c,var(--ink))}
+.t-a{--c:var(--aberta)}.t-e{--c:var(--andamento)}.t-c{--c:var(--concluida)}
+
+.search{position:relative}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
+input,select,textarea{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.search input{padding-left:42px;height:46px}
+
+.list{display:grid;gap:8px;list-style:none}
+.item{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;cursor:pointer;text-align:left;width:100%}
+.item:hover{border-color:#c3cddd}
+.item[aria-current="true"]{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.item .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;background:var(--brand-soft);color:var(--brand)}
+.item .av.A{background:#fff1e6;color:#b45309}
+.it-t{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it-m{font-size:13px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.it-m .id{font-family:var(--mono)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;white-space:nowrap;background:var(--b);color:var(--c)}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-aberta{--c:var(--aberta);--b:var(--aberta-bg)}.p-andamento{--c:var(--andamento);--b:var(--andamento-bg)}.p-concluida{--c:var(--concluida);--b:var(--concluida-bg)}
+.empty{background:var(--paper);border:1px dashed #cbd3e0;border-radius:14px;padding:44px 16px;text-align:center;color:var(--muted)}
+
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--paper);border-left:1px solid var(--line);box-shadow:-20px 0 50px rgba(15,42,82,.14);z-index:40;display:flex;flex-direction:column;transform:translateX(105%);visibility:hidden;transition:transform .22s ease,visibility 0s .22s}
+.drawer.open{transform:none;visibility:visible;transition:transform .22s ease}
+.dr-h{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line)}
+.dr-h span{font-family:var(--mono);color:var(--muted);font-size:14px}
+.dr-b{padding:22px;display:grid;gap:20px;overflow:auto;align-content:start}
+.dr-b h2{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.25;overflow-wrap:anywhere}
+.dr-desc{color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere}
+.facts{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.facts div{padding:12px 14px;border-bottom:1px solid var(--line)}
+.facts div:nth-child(odd){border-right:1px solid var(--line)}
+.facts div:nth-last-child(-n+2){border-bottom:0}
+.facts small{display:block;font-size:12px;color:var(--muted);font-weight:600}
+.facts strong{font-weight:700;font-size:14px}
+.lbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.steps button{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px 6px;font-weight:700;font-size:13px;cursor:pointer;color:var(--ink-2)}
+.steps button:hover{border-color:var(--c)}
+.steps button[aria-pressed="true"]{background:var(--b);border-color:var(--c);color:var(--c)}
+.share{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dr-f{margin-top:auto;padding:16px 22px;border-top:1px solid var(--line);display:flex;gap:8px}
+.dr-f .btn{flex:1}
+.ib{border:0;background:transparent;border-radius:8px;padding:8px;cursor:pointer;color:var(--muted)}
+.ib:hover{background:var(--bg);color:var(--ink)}
+.scrim{position:fixed;inset:0;background:rgba(15,24,44,.3);z-index:35}
+.scrim[hidden]{display:none}
+
+.overlay{position:fixed;inset:0;background:rgba(15,24,44,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.overlay[hidden]{display:none}
+.dlg{width:100%;max-width:520px;background:var(--paper);border-radius:16px;max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 30px 60px rgba(0,0,0,.2)}
+.dlg-h{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 6px}
+.dlg-h h2{font-size:19px;font-weight:800}
+.dlg-b{padding:14px 22px 6px;display:grid;gap:14px}
+.dlg-f{padding:18px 22px;display:flex;justify-content:flex-end;gap:8px}
+label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink-2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+textarea{resize:vertical;min-height:110px}
+
+.toast{position:fixed;bottom:max(22px,env(safe-area-inset-bottom,0px));left:50%;transform:translate(-50%,160%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;font-size:14px;transition:transform .2s;z-index:60}
+.toast:empty{display:none}
+.toast.show{transform:translate(-50%,0)}
+.toast.err{background:var(--danger)}
+#ficha{display:none}
+
+.mtop{display:none}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{display:none}
+  .mtop{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--side);color:var(--side-ink);padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px));position:sticky;top:0;z-index:30}
+  .mtop .logo{padding:0}
+  .mtop select{width:auto;background:var(--side-2);color:var(--side-ink);border-color:var(--side-2);font-weight:700}
+  .main{padding-top:20px}
+  .tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .head h1{font-size:24px}
+  .head .btn-brand{width:100%}
+}
+@media (max-width:520px){
+  .item{grid-template-columns:auto minmax(0,1fr);row-gap:8px}
+  .item .pill{grid-column:2;justify-self:start}
+  .two{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+@media print{
+  @page{size:A4;margin:16mm}
+  html,body{background:#fff!important}
+  .app,.mtop,.drawer,.scrim,.overlay,.toast{display:none!important}
+  #ficha{display:block;color:#000;font-size:13px}
+  .f-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0f2a52;padding-bottom:10px;margin-bottom:18px}
+  .f-head b{font-size:24px;font-weight:800;color:#0f2a52}
+  .f-head span{font-family:var(--mono);font-size:14px}
+  .f-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #999;margin-bottom:18px}
+  .f-grid div{padding:8px 10px;border-right:1px solid #999}
+  .f-grid div:last-child{border-right:0}
+  .f-grid small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555}
+  .f-grid strong{font-size:12px}
+  .f-sec{margin-bottom:16px}
+  .f-sec h3{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:4px}
+  .f-sec p{white-space:pre-wrap;line-height:1.55}
+  .f-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:70px}
+  .f-sign div{border-top:1px solid #000;padding-top:4px;font-size:11px;text-align:center}
+  .f-foot{margin-top:28px;font-family:var(--mono);font-size:9px;color:#666}
+}
+</style>
+</head>
+<body>
+<div class="mtop">
+  <div class="logo"><i>S</i><div><b>Satec</b></div></div>
+  <select id="mTec" aria-label="Técnico"><option value="">Todos</option><option>Victor</option><option>Andrei</option></select>
+</div>
+
+<div class="app">
+  <aside class="side">
+    <div class="logo"><i>S</i><div><b>Satec</b><small>Demandas técnicas</small></div></div>
+    <div>
+      <div class="nav-t">Técnicos</div>
+      <nav class="nav" id="nav"></nav>
+    </div>
+    <div class="side-foot" id="live"><span class="dot"></span><span id="sync">conectando</span></div>
+  </aside>
+
+  <main class="main">
+    <div class="inner">
+      <div class="head">
+        <div><h1 id="titulo">Todas as demandas</h1><p id="hoje"></p></div>
+        <button class="btn btn-brand" id="btnNova" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova demanda</button>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button type="button" class="tab t-a" data-s="aberta" aria-pressed="false"><span>Abertas</span><b id="nA">0</b></button>
+        <button type="button" class="tab t-e" data-s="em andamento" aria-pressed="false"><span>Em andamento</span><b id="nE">0</b></button>
+        <button type="button" class="tab t-c" data-s="concluida" aria-pressed="false"><span>Concluídas</span><b id="nC">0</b></button>
+        <button type="button" class="tab" data-s="" aria-pressed="true"><span>Todas</span><b id="nT">0</b></button>
+      </div>
+
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="fBusca" type="search" placeholder="Buscar demanda" aria-label="Buscar demanda"></div>
+
+      <ul class="list" id="lista"><li class="empty">Carregando…</li></ul>
+    </div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+
+<div class="overlay" id="mForm" hidden>
+  <form class="dlg" id="form">
+    <div class="dlg-h"><h2 id="formTitulo">Nova demanda</h2><button type="button" class="ib" data-close aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-b">
+      <input type="hidden" id="fId">
+      <div><label for="fTit">O que precisa ser feito?</label><input id="fTit" required maxlength="150" placeholder="Instalar impressora no financeiro"></div>
+      <div><label for="fDesc">Detalhes</label><textarea id="fDesc" placeholder="Local, contato, observações"></textarea></div>
+      <div class="two">
+        <div><label for="fTec">Técnico</label><select id="fTec" required><option>Victor</option><option>Andrei</option></select></div>
+        <div><label for="fSt">Status</label><select id="fSt"><option value="aberta">Aberta</option><option value="em andamento">Em andamento</option><option value="concluida">Concluída</option></select></div>
+      </div>
+    </div>
+    <div class="dlg-f"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn btn-brand" id="btnSalvar">Salvar demanda</button></div>
+  </form>
+</div>
+
+<div class="overlay" id="mDel" hidden>
+  <div class="dlg" style="max-width:420px">
+    <div class="dlg-h"><h2>Excluir demanda?</h2></div>
+    <div class="dlg-b"><p><strong id="delNome"></strong> será apagada e não dá para desfazer.</p></div>
+    <div class="dlg-f"><button type="button" class="btn" data-close>Cancelar</button><button type="button" class="btn btn-danger" id="btnDelOk">Excluir</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div id="ficha"></div>
+
+<script>
+const db = supabase.createClient('https://iuxhuszazljvvlocvsrv.supabase.co', 'sb_publishable__sqNx8HqBZKw-nAE5PZ63A__672bkEG');
+const $ = id => document.getElementById(id);
+const STATUS = {'aberta':['Aberta','p-aberta','var(--aberta)','var(--aberta-bg)'],'em andamento':['Em andamento','p-andamento','var(--andamento)','var(--andamento-bg)'],'concluida':['Concluída','p-concluida','var(--concluida)','var(--concluida-bg)']};
+const TECNICOS = ['Victor','Andrei'];
+let demandas = [], filtroTec = '', filtroSt = '', abertoId = null, delId = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cod = id => '#' + String(id).padStart(4, '0');
+const dt = d => d ? new Date(d).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).replace(',', ' às') : '—';
+const desde = d => {
+  const m = Math.max(0, Math.floor((Date.now() - new Date(d)) / 60000));
+  if (m < 60) return `há ${m} min`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `há ${h} h` : `há ${Math.floor(h / 24)} dia${h >= 48 ? 's' : ''}`;
+};
+
+function toast(msg, erro = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (erro ? ' err' : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = 'toast', 2600);
+}
+
+async function carregar() {
+  const { data, error } = await db.from('demandas').select('*').order('id', { ascending: false });
+  if (error) { $('live').classList.add('off'); $('sync').textContent = 'Sem conexão'; return toast('Não carregou: ' + error.message, true); }
+  $('live').classList.remove('off');
+  demandas = data;
+  $('sync').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  render();
+  if (abertoId) detalhe(abertoId, false);
+}
+
+function render() {
+  const pend = t => demandas.filter(d => (!t || d.tecnico === t) && d.status !== 'concluida').length;
+  $('nav').innerHTML = [['', 'Todas'], ...TECNICOS.map(t => [t, t])].map(([v, l]) =>
+    `<button type="button" data-tec="${v}" aria-current="${filtroTec === v}"><span class="av">${v ? v[0] : '★'}</span>${l}<span class="n">${pend(v)}</span></button>`).join('');
+  $('titulo').textContent = filtroTec ? `Demandas do ${filtroTec}` : 'Todas as demandas';
+
+  const base = demandas.filter(d => !filtroTec || d.tecnico === filtroTec);
+  const n = s => base.filter(d => d.status === s).length;
+  $('nA').textContent = n('aberta'); $('nE').textContent = n('em andamento'); $('nC').textContent = n('concluida'); $('nT').textContent = base.length;
+
+  const busca = $('fBusca').value.trim().toLowerCase();
+  const lista = base.filter(d => (!filtroSt || d.status === filtroSt) &&
+    (!busca || (cod(d.id) + ' ' + d.titulo + ' ' + (d.descricao || '')).toLowerCase().includes(busca)));
+
+  if (!lista.length) {
+    $('lista').innerHTML = `<li class="empty">${demandas.length ? 'Nenhuma demanda por aqui.' : 'Ainda não tem demandas. Clique em “Nova demanda” para registrar a primeira.'}</li>`;
+    return;
+  }
+  $('lista').innerHTML = lista.map(d => `<li><button type="button" class="item" data-id="${d.id}" aria-current="${abertoId == d.id}">
+    <span class="av ${d.tecnico[0]}">${esc(d.tecnico[0])}</span>
+    <span style="min-width:0"><span class="it-t" style="display:block">${esc(d.titulo)}</span>
+      <span class="it-m"><span class="id">${cod(d.id)}</span><span>${esc(d.tecnico)}</span><span>${d.status === 'concluida' ? 'concluída ' + desde(d.data_conclusao) : 'aberta ' + desde(d.data_abertura)}</span></span></span>
+    <span class="pill ${STATUS[d.status][1]}">${STATUS[d.status][0]}</span>
+  </button></li>`).join('');
+}
+
+function detalhe(id, abrirAgora = true) {
+  const d = demandas.find(x => x.id == id);
+  if (!d) return fecharDetalhe();
+  abertoId = d.id;
+  $('drawer').innerHTML = `
+    <div class="dr-h"><span>${cod(d.id)}</span><button type="button" class="ib" data-fechar aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dr-b">
+      <div><span class="pill ${STATUS[d.status][1]}">${STATUS[d.status][0]}</span><h2 style="margin-top:10px">${esc(d.titulo)}</h2></div>
+      ${d.descricao ? `<p class="dr-desc">${esc(d.descricao)}</p>` : ''}
+      <div class="facts">
+        <div><small>Técnico</small><strong>${esc(d.tecnico)}</strong></div>
+        <div><small>Aberta</small><strong>${desde(d.data_abertura)}</strong></div>
+        <div><small>Data de abertura</small><strong>${dt(d.data_abertura)}</strong></div>
+        <div><small>Data de conclusão</small><strong>${dt(d.data_conclusao)}</strong></div>
+      </div>
+      <div><div class="lbl">Mudar status</div><div class="steps">
+        ${Object.entries(STATUS).map(([v,[l,,c,b]]) => `<button type="button" data-st="${v}" style="--c:${c};--b:${b}" aria-pressed="${v === d.status}">${l}</button>`).join('')}
+      </div></div>
+      <div><div class="lbl">Enviar no grupo</div><div class="share">
+        <button type="button" class="btn" data-pdf><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 12v6M9 15l3 3 3-3"/></svg>Gerar PDF</button>
+        <button type="button" class="btn" data-zap><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>Copiar texto</button>
+      </div></div>
+    </div>
+    <div class="dr-f"><button type="button" class="btn" data-edit>Editar</button><button type="button" class="btn" data-del style="color:var(--danger)">Excluir</button></div>`;
+  if (abrirAgora) {
+    $('drawer').classList.add('open');
+    $('drawer').setAttribute('aria-hidden', 'false');
+    $('scrim').hidden = false;
+  }
+  document.querySelectorAll('.item').forEach(i => i.setAttribute('aria-current', i.dataset.id == abertoId));
+}
+
+function fecharDetalhe() {
+  abertoId = null;
+  $('drawer').classList.remove('open');
+  $('drawer').setAttribute('aria-hidden', 'true');
+  $('scrim').hidden = true;
+  document.querySelectorAll('.item').forEach(i => i.setAttribute('aria-current', 'false'));
+}
+
+const conclusao = (novo, atual) => novo === 'concluida' ? (atual || new Date().toISOString()) : null;
+const abrir = id => $(id).hidden = false;
+const fechar = () => document.querySelectorAll('.overlay').forEach(o => o.hidden = true);
+
+function abrirForm(d) {
+  $('formTitulo').textContent = d ? `Editar ${cod(d.id)}` : 'Nova demanda';
+  $('fId').value = d?.id || '';
+  $('fTit').value = d?.titulo || '';
+  $('fDesc').value = d?.descricao || '';
+  $('fTec').value = d?.tecnico || filtroTec || 'Victor';
+  $('fSt').value = d?.status || 'aberta';
+  abrir('mForm');
+  setTimeout(() => $('fTit').focus(), 30);
+}
+
+function textoZap(d) {
+  return [`*${cod(d.id)} · ${d.titulo}*`, `Técnico: ${d.tecnico}`, `Status: ${STATUS[d.status][0]}`,
+    `Aberta: ${dt(d.data_abertura)}`, d.data_conclusao ? `Concluída: ${dt(d.data_conclusao)}` : null,
+    d.descricao ? `\n${d.descricao}` : null].filter(Boolean).join('\n');
+}
+
+function ficha(d) {
+  $('ficha').innerHTML = `
+    <div class="f-head"><b>SATEC</b><span>Demanda ${cod(d.id)}</span></div>
+    <div class="f-grid">
+      <div><small>Técnico</small><strong>${esc(d.tecnico)}</strong></div>
+      <div><small>Status</small><strong>${STATUS[d.status][0]}</strong></div>
+      <div><small>Aberta em</small><strong>${dt(d.data_abertura)}</strong></div>
+      <div><small>Concluída em</small><strong>${dt(d.data_conclusao)}</strong></div>
+    </div>
+    <div class="f-sec"><h3>Demanda</h3><p style="font-weight:700;font-size:16px">${esc(d.titulo)}</p></div>
+    <div class="f-sec"><h3>Detalhes</h3><p>${esc(d.descricao) || '—'}</p></div>
+    <div class="f-sign"><div>${esc(d.tecnico)} · técnico</div><div>Solicitante</div></div>
+    <div class="f-foot">Gerado em ${dt(new Date().toISOString())}</div>`;
+  document.title = `Demanda ${cod(d.id)} - ${d.titulo}`;
+  window.print();
+  document.title = 'Demandas Satec';
+}
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const id = $('fId').value;
+  const atual = demandas.find(d => d.id == id);
+  const reg = {
+    titulo: $('fTit').value.trim(),
+    descricao: $('fDesc').value.trim() || null,
+    tecnico: $('fTec').value,
+    status: $('fSt').value,
+    data_conclusao: conclusao($('fSt').value, atual?.data_conclusao)
+  };
+  $('btnSalvar').disabled = true;
+  const { error } = id ? await db.from('demandas').update(reg).eq('id', id) : await db.from('demandas').insert(reg);
+  $('btnSalvar').disabled = false;
+  if (error) return toast('Não salvou: ' + error.message, true);
+  fechar();
+  toast(id ? 'Demanda atualizada' : 'Demanda registrada');
+  carregar();
+});
+
+$('drawer').addEventListener('click', async e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const d = demandas.find(x => x.id == abertoId);
+  if (b.hasAttribute('data-fechar')) return fecharDetalhe();
+  if (b.dataset.st && b.dataset.st !== d.status) {
+    const { error } = await db.from('demandas').update({ status: b.dataset.st, data_conclusao: conclusao(b.dataset.st, d.data_conclusao) }).eq('id', d.id);
+    if (error) return toast('Não mudou o status: ' + error.message, true);
+    toast(`${cod(d.id)}: ${STATUS[b.dataset.st][0]}`);
+    return carregar();
+  }
+  if (b.hasAttribute('data-pdf')) ficha(d);
+  if (b.hasAttribute('data-zap')) {
+    try { await navigator.clipboard.writeText(textoZap(d)); toast('Texto copiado. Cole no WhatsApp.'); }
+    catch { toast('Não foi possível copiar neste navegador.', true); }
+  }
+  if (b.hasAttribute('data-edit')) abrirForm(d);
+  if (b.hasAttribute('data-del')) { delId = d.id; $('delNome').textContent = `${cod(d.id)} – ${d.titulo}`; abrir('mDel'); }
+});
+
+$('btnDelOk').onclick = async () => {
+  const { error } = await db.from('demandas').delete().eq('id', delId);
+  if (error) return toast('Não excluiu: ' + error.message, true);
+  fechar();
+  fecharDetalhe();
+  toast('Demanda excluída');
+  carregar();
+};
+
+$('lista').addEventListener('click', e => { const b = e.target.closest('.item'); if (b) detalhe(b.dataset.id); });
+$('nav').addEventListener('click', e => { const b = e.target.closest('[data-tec]'); if (!b) return; filtroTec = b.dataset.tec; $('mTec').value = filtroTec; render(); });
+$('mTec').addEventListener('change', e => { filtroTec = e.target.value; render(); });
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if (!b) return;
+  filtroSt = b.dataset.s;
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-pressed', t === b));
+  render();
+});
+$('fBusca').addEventListener('input', render);
+$('btnNova').onclick = () => abrirForm();
+$('scrim').onclick = fecharDetalhe;
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = fechar);
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => e.target === o && fechar()));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { fechar(); fecharDetalhe(); } });
+const hj = new Date().toLocaleDateString('pt-BR', {weekday:'long',day:'numeric',month:'long'});
+$('hoje').textContent = hj[0].toUpperCase() + hj.slice(1);
+setInterval(carregar, 30000);
+carregar();
+</script>
+</body>
+</html>
