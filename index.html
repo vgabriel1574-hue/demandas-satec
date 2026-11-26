@@ -174,7 +174,7 @@ body.editor .so-leitor{display:none!important}
 <body>
 <div class="mtop">
   <div class="logo"><i>S</i><div><b>Satec</b></div></div>
-  <select id="mTec" aria-label="Técnico"><option value="">Todos</option><option>Victor</option><option>Andrei</option></select>
+  <select id="mTec" aria-label="Técnico"><option value="">Todos</option><option>Victor</option><option>Andrey</option></select>
 </div>
 
 <div class="app">
@@ -223,7 +223,7 @@ body.editor .so-leitor{display:none!important}
       <div><label for="fTit">O que precisa ser feito?</label><input id="fTit" required maxlength="150" placeholder="Instalar impressora no financeiro"></div>
       <div><label for="fDesc">Detalhes</label><textarea id="fDesc" placeholder="Local, contato, observações"></textarea></div>
       <div class="two">
-        <div><label for="fTec">Técnico</label><select id="fTec" required><option>Victor</option><option>Andrei</option></select></div>
+        <div><label for="fTec">Técnico</label><select id="fTec" required><option>Victor</option><option>Andrey</option></select></div>
         <div><label for="fSt">Status</label><select id="fSt"><option value="aberta">Aberta</option><option value="em andamento">Em andamento</option><option value="concluida">Concluída</option></select></div>
       </div>
     </div>
@@ -259,7 +259,7 @@ body.editor .so-leitor{display:none!important}
 const db = supabase.createClient('https://iuxhuszazljvvlocvsrv.supabase.co', 'sb_publishable__sqNx8HqBZKw-nAE5PZ63A__672bkEG');
 const $ = id => document.getElementById(id);
 const STATUS = {'aberta':['Aberta','p-aberta','var(--aberta)','var(--aberta-bg)'],'em andamento':['Em andamento','p-andamento','var(--andamento)','var(--andamento-bg)'],'concluida':['Concluída','p-concluida','var(--concluida)','var(--concluida-bg)']};
-const TECNICOS = ['Victor','Andrei'];
+const TECNICOS = ['Victor','Andrey'];
 let demandas = [], filtroTec = '', filtroSt = '', abertoId = null, delId = null, criandoSenha = false;
 let senha = '';
 try { senha = localStorage.getItem('satec_senha') || ''; } catch {}
@@ -466,7 +466,7 @@ $('btnEntrar').onclick = async () => {
   const { data: tem } = await db.rpc('equipe_tem_senha');
   criandoSenha = tem === false;
   $('senhaTitulo').textContent = criandoSenha ? 'Criar senha da equipe' : 'Entrar para editar';
-  $('senhaTexto').textContent = criandoSenha ? 'Ainda não existe senha. Crie uma para você e o Andrei usarem. Quem não tiver a senha só consegue ver.' : 'Digite a senha da equipe. Quem não entrar só consegue ver as demandas.';
+  $('senhaTexto').textContent = criandoSenha ? 'Ainda não existe senha. Crie uma para você e o Andrey usarem. Quem não tiver a senha só consegue ver.' : 'Digite a senha da equipe. Quem não entrar só consegue ver as demandas.';
   $('boxConf').hidden = !criandoSenha;
   $('fSenha2').required = criandoSenha;
   $('btnSenhaOk').textContent = criandoSenha ? 'Criar senha' : 'Entrar';
