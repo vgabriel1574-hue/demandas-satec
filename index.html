@@ -125,6 +125,10 @@ textarea{resize:vertical;min-height:110px}
 .toast.show{transform:translate(-50%,0)}
 .toast.err{background:var(--danger)}
 #ficha{display:none}
+body:not(.editor) .so-editor{display:none!important}
+body.editor .so-leitor{display:none!important}
+.head-acts{display:flex;gap:8px;flex-wrap:wrap}
+.erro{color:var(--danger);font-size:13px;font-weight:600}
 
 .mtop{display:none}
 @media (max-width:860px){
@@ -187,7 +191,11 @@ textarea{resize:vertical;min-height:110px}
     <div class="inner">
       <div class="head">
         <div><h1 id="titulo">Todas as demandas</h1><p id="hoje"></p></div>
-        <button class="btn btn-brand" id="btnNova" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova demanda</button>
+        <div class="head-acts">
+          <button class="btn so-leitor" id="btnEntrar" type="button"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Entrar para editar</button>
+          <button class="btn so-editor" id="btnSair" type="button" title="Sair do modo de edição neste aparelho"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>Sair</button>
+          <button class="btn btn-brand so-editor" id="btnNova" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova demanda</button>
+        </div>
       </div>
 
       <div class="tabs" id="tabs">
@@ -231,6 +239,19 @@ textarea{resize:vertical;min-height:110px}
   </div>
 </div>
 
+<div class="overlay" id="mSenha" hidden>
+  <form class="dlg" id="formSenha" style="max-width:420px">
+    <div class="dlg-h"><h2 id="senhaTitulo">Entrar para editar</h2><button type="button" class="ib" data-close aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-b">
+      <p id="senhaTexto" style="color:var(--ink-2);font-size:14px">Digite a senha da equipe. Quem não entrar só consegue ver as demandas.</p>
+      <div><label for="fSenha">Senha da equipe</label><input id="fSenha" type="password" required minlength="4" autocomplete="current-password"></div>
+      <div id="boxConf" hidden><label for="fSenha2">Repita a senha</label><input id="fSenha2" type="password" minlength="4" autocomplete="new-password"></div>
+      <p class="erro" id="senhaErro" hidden></p>
+    </div>
+    <div class="dlg-f"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn btn-brand" id="btnSenhaOk">Entrar</button></div>
+  </form>
+</div>
+
 <div class="toast" id="toast" role="status"></div>
 <div id="ficha"></div>
 
@@ -239,7 +260,20 @@ const db = supabase.createClient('https://iuxhuszazljvvlocvsrv.supabase.co', 'sb
 const $ = id => document.getElementById(id);
 const STATUS = {'aberta':['Aberta','p-aberta','var(--aberta)','var(--aberta-bg)'],'em andamento':['Em andamento','p-andamento','var(--andamento)','var(--andamento-bg)'],'concluida':['Concluída','p-concluida','var(--concluida)','var(--concluida-bg)']};
 const TECNICOS = ['Victor','Andrei'];
-let demandas = [], filtroTec = '', filtroSt = '', abertoId = null, delId = null;
+let demandas = [], filtroTec = '', filtroSt = '', abertoId = null, delId = null, criandoSenha = false;
+let senha = '';
+try { senha = localStorage.getItem('satec_senha') || ''; } catch {}
+
+function modoEditor(on) {
+  document.body.classList.toggle('editor', on);
+  if (!on) { senha = ''; try { localStorage.removeItem('satec_senha'); } catch {} }
+}
+
+async function rpc(nome, args) {
+  const { data, error } = await db.rpc(nome, { s: senha, ...args });
+  if (error && /Senha incorreta/.test(error.message)) { modoEditor(false); toast('Senha da equipe mudou ou está errada. Entre de novo.', true); return { error }; }
+  return { data, error };
+}
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cod = id => '#' + String(id).padStart(4, '0');
@@ -310,7 +344,7 @@ function detalhe(id, abrirAgora = true) {
         <div><small>Data de abertura</small><strong>${dt(d.data_abertura)}</strong></div>
         <div><small>Data de conclusão</small><strong>${dt(d.data_conclusao)}</strong></div>
       </div>
-      <div><div class="lbl">Mudar status</div><div class="steps">
+      <div class="so-editor"><div class="lbl">Mudar status</div><div class="steps">
         ${Object.entries(STATUS).map(([v,[l,,c,b]]) => `<button type="button" data-st="${v}" style="--c:${c};--b:${b}" aria-pressed="${v === d.status}">${l}</button>`).join('')}
       </div></div>
       <div><div class="lbl">Enviar no grupo</div><div class="share">
@@ -318,7 +352,7 @@ function detalhe(id, abrirAgora = true) {
         <button type="button" class="btn" data-zap><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>Copiar texto</button>
       </div></div>
     </div>
-    <div class="dr-f"><button type="button" class="btn" data-edit>Editar</button><button type="button" class="btn" data-del style="color:var(--danger)">Excluir</button></div>`;
+    <div class="dr-f so-editor"><button type="button" class="btn" data-edit>Editar</button><button type="button" class="btn" data-del style="color:var(--danger)">Excluir</button></div>`;
   if (abrirAgora) {
     $('drawer').classList.add('open');
     $('drawer').setAttribute('aria-hidden', 'false');
@@ -378,15 +412,8 @@ $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const id = $('fId').value;
   const atual = demandas.find(d => d.id == id);
-  const reg = {
-    titulo: $('fTit').value.trim(),
-    descricao: $('fDesc').value.trim() || null,
-    tecnico: $('fTec').value,
-    status: $('fSt').value,
-    data_conclusao: conclusao($('fSt').value, atual?.data_conclusao)
-  };
   $('btnSalvar').disabled = true;
-  const { error } = id ? await db.from('demandas').update(reg).eq('id', id) : await db.from('demandas').insert(reg);
+  const { error } = await rpc('salvar_demanda', { p_id: id ? Number(id) : null, p_titulo: $('fTit').value.trim(), p_descricao: $('fDesc').value.trim() || null, p_tecnico: $('fTec').value, p_status: $('fSt').value });
   $('btnSalvar').disabled = false;
   if (error) return toast('Não salvou: ' + error.message, true);
   fechar();
@@ -400,7 +427,7 @@ $('drawer').addEventListener('click', async e => {
   const d = demandas.find(x => x.id == abertoId);
   if (b.hasAttribute('data-fechar')) return fecharDetalhe();
   if (b.dataset.st && b.dataset.st !== d.status) {
-    const { error } = await db.from('demandas').update({ status: b.dataset.st, data_conclusao: conclusao(b.dataset.st, d.data_conclusao) }).eq('id', d.id);
+    const { error } = await rpc('salvar_demanda', { p_id: d.id, p_titulo: null, p_descricao: null, p_tecnico: null, p_status: b.dataset.st });
     if (error) return toast('Não mudou o status: ' + error.message, true);
     toast(`${cod(d.id)}: ${STATUS[b.dataset.st][0]}`);
     return carregar();
@@ -415,7 +442,7 @@ $('drawer').addEventListener('click', async e => {
 });
 
 $('btnDelOk').onclick = async () => {
-  const { error } = await db.from('demandas').delete().eq('id', delId);
+  const { error } = await rpc('excluir_demanda', { p_id: Number(delId) });
   if (error) return toast('Não excluiu: ' + error.message, true);
   fechar();
   fecharDetalhe();
@@ -434,6 +461,42 @@ $('tabs').addEventListener('click', e => {
 });
 $('fBusca').addEventListener('input', render);
 $('btnNova').onclick = () => abrirForm();
+$('btnSair').onclick = () => { modoEditor(false); toast('Modo de edição desligado neste aparelho'); };
+$('btnEntrar').onclick = async () => {
+  const { data: tem } = await db.rpc('equipe_tem_senha');
+  criandoSenha = tem === false;
+  $('senhaTitulo').textContent = criandoSenha ? 'Criar senha da equipe' : 'Entrar para editar';
+  $('senhaTexto').textContent = criandoSenha ? 'Ainda não existe senha. Crie uma para você e o Andrei usarem. Quem não tiver a senha só consegue ver.' : 'Digite a senha da equipe. Quem não entrar só consegue ver as demandas.';
+  $('boxConf').hidden = !criandoSenha;
+  $('fSenha2').required = criandoSenha;
+  $('btnSenhaOk').textContent = criandoSenha ? 'Criar senha' : 'Entrar';
+  $('fSenha').value = $('fSenha2').value = '';
+  $('senhaErro').hidden = true;
+  abrir('mSenha');
+  setTimeout(() => $('fSenha').focus(), 30);
+};
+$('formSenha').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = $('fSenha').value;
+  const erro = m => { $('senhaErro').textContent = m; $('senhaErro').hidden = false; };
+  $('btnSenhaOk').disabled = true;
+  try {
+    if (criandoSenha) {
+      if (v !== $('fSenha2').value) return erro('As duas senhas não são iguais.');
+      const { error } = await db.rpc('definir_senha', { nova: v });
+      if (error) return erro(error.message);
+    } else {
+      const { data: ok } = await db.rpc('verificar_senha', { s: v });
+      if (!ok) return erro('Senha incorreta.');
+    }
+    senha = v;
+    try { localStorage.setItem('satec_senha', v); } catch {}
+    modoEditor(true);
+    fechar();
+    toast(criandoSenha ? 'Senha criada. Modo de edição ligado.' : 'Modo de edição ligado');
+  } finally { $('btnSenhaOk').disabled = false; }
+});
+if (senha) db.rpc('verificar_senha', { s: senha }).then(({ data }) => modoEditor(!!data));
 $('scrim').onclick = fecharDetalhe;
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = fechar);
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => e.target === o && fechar()));
