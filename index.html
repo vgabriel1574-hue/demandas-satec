@@ -157,7 +157,7 @@ body.editor .so-leitor{display:none!important}
   .f-head{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0f2a52;padding-bottom:10px;margin-bottom:18px}
   .f-head b{font-size:24px;font-weight:800;color:#0f2a52}
   .f-head span{font-family:var(--mono);font-size:14px}
-  .f-grid{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #999;margin-bottom:18px}
+  .f-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #999;margin-bottom:18px}
   .f-grid div{padding:8px 10px;border-right:1px solid #999}
   .f-grid div:last-child{border-right:0}
   .f-grid small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555}
@@ -230,6 +230,7 @@ body.editor .so-leitor{display:none!important}
     <div class="dlg-b">
       <input type="hidden" id="fId">
       <div><label for="fTit">O que precisa ser feito?</label><input id="fTit" required maxlength="150" placeholder="Instalar impressora no financeiro"></div>
+      <div><label for="fSetor">Setor que pediu</label><input id="fSetor" list="setores" maxlength="60" placeholder="Financeiro, Recepção, RH…" autocomplete="off"><datalist id="setores"></datalist></div>
       <div><label for="fDesc">Detalhes</label><textarea id="fDesc" placeholder="Local, contato, observações"></textarea></div>
       <div class="two">
         <div><label for="fTec">Técnico</label><select id="fTec" required><option>Victor</option><option>Andrey</option></select></div>
@@ -324,7 +325,7 @@ function render() {
 
   const busca = $('fBusca').value.trim().toLowerCase();
   const lista = base.filter(d => (!filtroSt || d.status === filtroSt) &&
-    (!busca || (cod(d.id) + ' ' + d.titulo + ' ' + (d.descricao || '')).toLowerCase().includes(busca)));
+    (!busca || (cod(d.id) + ' ' + d.titulo + ' ' + (d.setor || '') + ' ' + (d.descricao || '')).toLowerCase().includes(busca)));
 
   if (!lista.length) {
     $('lista').innerHTML = `<li class="empty">${demandas.length ? 'Nenhuma demanda por aqui.' : 'Ainda não tem demandas. Clique em “Nova demanda” para registrar a primeira.'}</li>`;
@@ -333,7 +334,7 @@ function render() {
   $('lista').innerHTML = lista.map(d => `<li><button type="button" class="item" data-id="${d.id}" aria-current="${abertoId == d.id}">
     <span class="av ${d.tecnico[0]}">${esc(d.tecnico[0])}</span>
     <span style="min-width:0"><span class="it-t" style="display:block">${esc(d.titulo)}</span>
-      <span class="it-m"><span class="id">${cod(d.id)}</span><span>${esc(d.tecnico)}</span><span>${d.status === 'concluida' ? 'concluída ' + desde(d.data_conclusao) : 'aberta ' + desde(d.data_abertura)}</span></span></span>
+      <span class="it-m"><span class="id">${cod(d.id)}</span>${d.setor ? `<span>${esc(d.setor)}</span>` : ''}<span>${esc(d.tecnico)}</span><span>${d.status === 'concluida' ? 'concluída ' + desde(d.data_conclusao) : 'aberta ' + desde(d.data_abertura)}</span></span></span>
     <span class="pill ${STATUS[d.status][1]}">${STATUS[d.status][0]}</span>
   </button></li>`).join('');
 }
@@ -348,8 +349,8 @@ function detalhe(id, abrirAgora = true) {
       <div><span class="pill ${STATUS[d.status][1]}">${STATUS[d.status][0]}</span><h2 style="margin-top:10px">${esc(d.titulo)}</h2></div>
       ${d.descricao ? `<p class="dr-desc">${esc(d.descricao)}</p>` : ''}
       <div class="facts">
+        <div><small>Setor que pediu</small><strong>${esc(d.setor) || '—'}</strong></div>
         <div><small>Técnico</small><strong>${esc(d.tecnico)}</strong></div>
-        <div><small>Aberta</small><strong>${desde(d.data_abertura)}</strong></div>
         <div><small>Data de abertura</small><strong>${dt(d.data_abertura)}</strong></div>
         <div><small>Data de conclusão</small><strong>${dt(d.data_conclusao)}</strong></div>
       </div>
@@ -387,6 +388,8 @@ function abrirForm(d) {
   $('fId').value = d?.id || '';
   $('fTit').value = d?.titulo || '';
   $('fDesc').value = d?.descricao || '';
+  $('fSetor').value = d?.setor || '';
+  $('setores').innerHTML = [...new Set(demandas.map(x => x.setor).filter(Boolean))].sort().map(v => `<option value="${esc(v)}">`).join('');
   $('fTec').value = d?.tecnico || filtroTec || 'Victor';
   $('fSt').value = d?.status || 'aberta';
   abrir('mForm');
@@ -394,7 +397,7 @@ function abrirForm(d) {
 }
 
 function textoZap(d) {
-  return [`*${cod(d.id)} · ${d.titulo}*`, `Técnico: ${d.tecnico}`, `Status: ${STATUS[d.status][0]}`,
+  return [`*${cod(d.id)} · ${d.titulo}*`, d.setor ? `Setor: ${d.setor}` : null, `Técnico: ${d.tecnico}`, `Status: ${STATUS[d.status][0]}`,
     `Aberta: ${dt(d.data_abertura)}`, d.data_conclusao ? `Concluída: ${dt(d.data_conclusao)}` : null,
     d.descricao ? `\n${d.descricao}` : null].filter(Boolean).join('\n');
 }
@@ -403,6 +406,7 @@ function ficha(d) {
   $('ficha').innerHTML = `
     <div class="f-head"><b>SATEC</b><span>Demanda ${cod(d.id)}</span></div>
     <div class="f-grid">
+      <div><small>Setor</small><strong>${esc(d.setor) || '—'}</strong></div>
       <div><small>Técnico</small><strong>${esc(d.tecnico)}</strong></div>
       <div><small>Status</small><strong>${STATUS[d.status][0]}</strong></div>
       <div><small>Aberta em</small><strong>${dt(d.data_abertura)}</strong></div>
@@ -421,7 +425,7 @@ $('form').addEventListener('submit', async e => {
   const id = $('fId').value;
   const atual = demandas.find(d => d.id == id);
   $('btnSalvar').disabled = true;
-  const { error } = await rpc('salvar_demanda', { p_id: id ? Number(id) : null, p_titulo: $('fTit').value.trim(), p_descricao: $('fDesc').value.trim() || null, p_tecnico: $('fTec').value, p_status: $('fSt').value });
+  const { error } = await rpc('salvar_demanda', { p_id: id ? Number(id) : null, p_titulo: $('fTit').value.trim(), p_descricao: $('fDesc').value.trim() || null, p_tecnico: $('fTec').value, p_status: $('fSt').value, p_setor: $('fSetor').value.trim() || null });
   $('btnSalvar').disabled = false;
   if (error) return toast('Não salvou: ' + error.message, true);
   fechar();
@@ -472,7 +476,7 @@ $('btnNova').onclick = () => abrirForm();
 $('btnExport').onclick = () => {
   const busca = $('fBusca').value.trim().toLowerCase();
   const lista = demandas.filter(d => (!filtroTec || d.tecnico === filtroTec) && (!filtroSt || d.status === filtroSt) &&
-    (!busca || (cod(d.id) + ' ' + d.titulo + ' ' + (d.descricao || '')).toLowerCase().includes(busca)));
+    (!busca || (cod(d.id) + ' ' + d.titulo + ' ' + (d.setor || '') + ' ' + (d.descricao || '')).toLowerCase().includes(busca)));
   if (!lista.length) return toast('Não há demandas para exportar com esses filtros.', true);
   const n = st => lista.filter(d => d.status === st).length;
   const filtros = [filtroTec ? 'Técnico: ' + filtroTec : 'Todos os técnicos', filtroSt ? 'Status: ' + STATUS[filtroSt][0] : 'Todos os status', busca ? 'Busca: “' + busca + '”' : null].filter(Boolean).join(' · ');
@@ -480,8 +484,8 @@ $('btnExport').onclick = () => {
     <div class="f-head"><b>SATEC</b><span>Relatório de demandas</span></div>
     <div class="r-sub">${esc(filtros)} · gerado em ${dt(new Date().toISOString())}</div>
     <div class="r-tot"><span><b>${lista.length}</b> demandas</span><span><b>${n('aberta')}</b> abertas</span><span><b>${n('em andamento')}</b> em andamento</span><span><b>${n('concluida')}</b> concluídas</span></div>
-    <table class="r-tab"><thead><tr><th>Nº</th><th>Demanda</th><th>Técnico</th><th>Status</th><th>Abertura</th><th>Conclusão</th></tr></thead><tbody>
-    ${lista.map(d => `<tr><td class="mono">${cod(d.id)}</td><td><b>${esc(d.titulo)}</b>${d.descricao ? `<small>${esc(d.descricao)}</small>` : ''}</td><td>${esc(d.tecnico)}</td><td>${STATUS[d.status][0]}</td><td class="mono">${dt(d.data_abertura)}</td><td class="mono">${dt(d.data_conclusao)}</td></tr>`).join('')}
+    <table class="r-tab"><thead><tr><th>Nº</th><th>Demanda</th><th>Setor</th><th>Técnico</th><th>Status</th><th>Abertura</th><th>Conclusão</th></tr></thead><tbody>
+    ${lista.map(d => `<tr><td class="mono">${cod(d.id)}</td><td><b>${esc(d.titulo)}</b>${d.descricao ? `<small>${esc(d.descricao)}</small>` : ''}</td><td>${esc(d.setor) || '—'}</td><td>${esc(d.tecnico)}</td><td>${STATUS[d.status][0]}</td><td class="mono">${dt(d.data_abertura)}</td><td class="mono">${dt(d.data_conclusao)}</td></tr>`).join('')}
     </tbody></table>`;
   document.title = 'Relatório de demandas Satec - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
   window.print();
