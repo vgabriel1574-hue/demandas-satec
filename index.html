@@ -168,6 +168,14 @@ body.editor .so-leitor{display:none!important}
   .f-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:70px}
   .f-sign div{border-top:1px solid #000;padding-top:4px;font-size:11px;text-align:center}
   .f-foot{margin-top:28px;font-family:var(--mono);font-size:9px;color:#666}
+  .r-sub{font-size:12px;color:#333;margin-bottom:12px}
+  .r-tot{display:flex;gap:18px;font-size:12px;margin-bottom:14px}
+  .r-tab{width:100%;border-collapse:collapse;font-size:11px}
+  .r-tab th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#444;border-bottom:2px solid #0f2a52;padding:6px 6px}
+  .r-tab td{border-bottom:1px solid #ccc;padding:7px 6px;vertical-align:top}
+  .r-tab tr{break-inside:avoid}
+  .r-tab .mono{font-family:var(--mono);white-space:nowrap}
+  .r-tab small{display:block;color:#555;white-space:pre-wrap}
 }
 </style>
 </head>
@@ -192,6 +200,7 @@ body.editor .so-leitor{display:none!important}
       <div class="head">
         <div><h1 id="titulo">Todas as demandas</h1><p id="hoje"></p></div>
         <div class="head-acts">
+          <button class="btn" id="btnExport" type="button"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 12v6M9 15l3 3 3-3"/></svg>Exportar PDF</button>
           <button class="btn so-leitor" id="btnEntrar" type="button"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Entrar para editar</button>
           <button class="btn so-editor" id="btnSair" type="button" title="Sair do modo de edição neste aparelho"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>Sair</button>
           <button class="btn btn-brand so-editor" id="btnNova" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nova demanda</button>
@@ -461,6 +470,24 @@ $('tabs').addEventListener('click', e => {
 });
 $('fBusca').addEventListener('input', render);
 $('btnNova').onclick = () => abrirForm();
+$('btnExport').onclick = () => {
+  const busca = $('fBusca').value.trim().toLowerCase();
+  const lista = demandas.filter(d => (!filtroTec || d.tecnico === filtroTec) && (!filtroSt || d.status === filtroSt) &&
+    (!busca || (cod(d.id) + ' ' + d.titulo + ' ' + (d.descricao || '')).toLowerCase().includes(busca)));
+  if (!lista.length) return toast('Não há demandas para exportar com esses filtros.', true);
+  const n = st => lista.filter(d => d.status === st).length;
+  const filtros = [filtroTec ? 'Técnico: ' + filtroTec : 'Todos os técnicos', filtroSt ? 'Status: ' + STATUS[filtroSt][0] : 'Todos os status', busca ? 'Busca: “' + busca + '”' : null].filter(Boolean).join(' · ');
+  $('ficha').innerHTML = `
+    <div class="f-head"><b>SATEC</b><span>Relatório de demandas</span></div>
+    <div class="r-sub">${esc(filtros)} · gerado em ${dt(new Date().toISOString())}</div>
+    <div class="r-tot"><span><b>${lista.length}</b> demandas</span><span><b>${n('aberta')}</b> abertas</span><span><b>${n('em andamento')}</b> em andamento</span><span><b>${n('concluida')}</b> concluídas</span></div>
+    <table class="r-tab"><thead><tr><th>Nº</th><th>Demanda</th><th>Técnico</th><th>Status</th><th>Abertura</th><th>Conclusão</th></tr></thead><tbody>
+    ${lista.map(d => `<tr><td class="mono">${cod(d.id)}</td><td><b>${esc(d.titulo)}</b>${d.descricao ? `<small>${esc(d.descricao)}</small>` : ''}</td><td>${esc(d.tecnico)}</td><td>${STATUS[d.status][0]}</td><td class="mono">${dt(d.data_abertura)}</td><td class="mono">${dt(d.data_conclusao)}</td></tr>`).join('')}
+    </tbody></table>`;
+  document.title = 'Relatório de demandas Satec - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+  window.print();
+  document.title = 'Demandas Satec';
+};
 $('btnSair').onclick = () => { modoEditor(false); toast('Modo de edição desligado neste aparelho'); };
 $('btnEntrar').onclick = async () => {
   const { data: tem } = await db.rpc('equipe_tem_senha');
