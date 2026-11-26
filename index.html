@@ -241,7 +241,7 @@ body.editor .so-leitor{display:none!important}
     <div class="dlg-b">
       <input type="hidden" id="fId">
       <div><label for="fTit">O que precisa ser feito?</label><input id="fTit" required maxlength="150" placeholder="Instalar impressora no financeiro"></div>
-      <div><label for="fSetor">Setor que pediu</label><input id="fSetor" list="setores" maxlength="60" placeholder="Financeiro, Recepção, RH…" autocomplete="off"><datalist id="setores"></datalist></div>
+      <div><label for="fSetor">Setor</label><input id="fSetor" list="setores" maxlength="60" placeholder="Financeiro, Recepção, RH…" autocomplete="off"><datalist id="setores"></datalist></div>
       <div><label for="fDesc">Detalhes</label><textarea id="fDesc" placeholder="Local, contato, observações"></textarea></div>
       <div><label for="fFotos">Fotos ou prints</label>
         <div class="add-foto"><button type="button" class="btn" id="btnFoto"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>Adicionar foto</button><small>ou cole um print com Ctrl+V</small></div>
@@ -369,7 +369,7 @@ function detalhe(id, abrirAgora = true) {
       ${d.descricao ? `<p class="dr-desc">${esc(d.descricao)}</p>` : ''}
       ${d.anexos?.length ? `<div><div class="lbl">Fotos e prints</div><div class="fotos">${d.anexos.map(a => `<a class="foto" href="${urlFoto(a)}" target="_blank" rel="noopener"><img src="${urlFoto(a)}" alt="Anexo da demanda" loading="lazy"></a>`).join('')}</div></div>` : ''}
       <div class="facts">
-        <div><small>Setor que pediu</small><strong>${esc(d.setor) || '—'}</strong></div>
+        <div><small>Setor</small><strong>${esc(d.setor) || '—'}</strong></div>
         <div><small>Técnico</small><strong>${esc(d.tecnico)}</strong></div>
         <div><small>Data de abertura</small><strong>${dt(d.data_abertura)}</strong></div>
         <div><small>Data de conclusão</small><strong>${dt(d.data_conclusao)}</strong></div>
